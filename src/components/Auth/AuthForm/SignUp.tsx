@@ -67,7 +67,7 @@ export default function SignUp({ onBackToSignIn, onClose, onNavigate }: SignUpPr
         }
       } catch { }
 
-      if (onBackToSignIn) onBackToSignIn()
+      if (onClose) onClose()
     } catch (err: any) {
       let msg = 'Sign up failed. Please try again.'
       switch (err?.code) {
