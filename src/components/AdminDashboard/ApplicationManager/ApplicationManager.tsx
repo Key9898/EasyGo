@@ -3,12 +3,12 @@ import { MessageSquare, Clock, Eye, CheckCircle, XCircle } from 'lucide-react'
 import { db } from '../../../firebaseConfig'
 import {
     collection,
-    getDocs,
     updateDoc,
     doc,
     query,
     orderBy,
-    deleteDoc
+    deleteDoc,
+    onSnapshot
 } from 'firebase/firestore'
 
 interface Application {
@@ -30,32 +30,27 @@ export default function ApplicationManager() {
     const [filter, setFilter] = useState<'all' | 'pending' | 'reviewed' | 'accepted' | 'rejected'>('all')
 
     useEffect(() => {
-        fetchApplications()
-    }, [])
-
-    const fetchApplications = async () => {
         if (!db) {
             setLoading(false)
-            window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'error', title: 'Error', message: 'Service unavailable' } }))
             return
         }
-        try {
-            const q = query(collection(db!, 'applications'), orderBy('createdAt', 'desc'))
-            const querySnapshot = await getDocs(q)
-            const applicationsData = querySnapshot.docs.map(doc => ({
+
+        const q = query(collection(db, 'applications'), orderBy('createdAt', 'desc'))
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const applicationsData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             })) as Application[]
             setApplications(applicationsData)
-        } catch (error) {
-            console.error('Error fetching applications:', error)
-            window.dispatchEvent(new CustomEvent('app:notify', {
-                detail: { type: 'error', title: 'Error', message: 'Failed to load applications' }
-            }))
-        } finally {
             setLoading(false)
-        }
-    }
+        }, (error) => {
+            console.error('Error fetching applications:', error)
+            setLoading(false)
+        })
+
+        return () => unsubscribe()
+    }, [])
 
     const handleStatusChange = async (applicationId: string, newStatus: Application['status']) => {
         if (!db) return
@@ -67,8 +62,6 @@ export default function ApplicationManager() {
             window.dispatchEvent(new CustomEvent('app:notify', {
                 detail: { type: 'success', title: 'Success', message: 'Application status updated' }
             }))
-
-            fetchApplications()
         } catch (error) {
             console.error('Error updating application:', error)
             window.dispatchEvent(new CustomEvent('app:notify', {
@@ -86,7 +79,6 @@ export default function ApplicationManager() {
             window.dispatchEvent(new CustomEvent('app:notify', {
                 detail: { type: 'success', title: 'Deleted', message: 'Application deleted successfully' }
             }))
-            fetchApplications()
         } catch (error) {
             console.error('Error deleting application:', error)
             window.dispatchEvent(new CustomEvent('app:notify', {

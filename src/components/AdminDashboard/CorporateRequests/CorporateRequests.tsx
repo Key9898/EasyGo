@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Building2, CheckCircle, MessageSquare, Clock, XCircle } from 'lucide-react'
 import { db } from '../../../firebaseConfig'
-import { collection, getDocs, query, orderBy, updateDoc, doc } from 'firebase/firestore'
+import { collection, query, orderBy, updateDoc, doc, onSnapshot } from 'firebase/firestore'
 import type { CorporateRequest } from '../../../types'
 
 export default function CorporateRequests() {
@@ -9,27 +9,25 @@ export default function CorporateRequests() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'pending' | 'contacted' | 'approved' | 'rejected'>('all')
 
-  useEffect(() => { fetchRequests() }, [])
-
-  const fetchRequests = async () => {
+  useEffect(() => {
     if (!db) { setLoading(false); return }
-    try {
-      const q = query(collection(db!, 'corporateRequests'), orderBy('createdAt', 'desc'))
-      const snap = await getDocs(q)
+    const q = query(collection(db, 'corporateRequests'), orderBy('createdAt', 'desc'))
+    const unsubscribe = onSnapshot(q, (snap) => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() })) as CorporateRequest[]
       setRequests(data)
-    } catch (err) {
+      setLoading(false)
+    }, (err) => {
       console.error('Error loading corporate requests', err)
-      window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'error', title: 'Error', message: 'Failed to load corporate requests' } }))
-    } finally { setLoading(false) }
-  }
+      setLoading(false)
+    })
+    return () => unsubscribe()
+  }, [])
 
   const changeStatus = async (id: string, status: CorporateRequest['status']) => {
     if (!db) return
     try {
       await updateDoc(doc(db!, 'corporateRequests', id), { status })
       window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'success', title: 'Updated', message: 'Request status updated' } }))
-      fetchRequests()
     } catch (err) {
       console.error('Update status failed', err)
       window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'error', title: 'Error', message: 'Could not update status' } }))

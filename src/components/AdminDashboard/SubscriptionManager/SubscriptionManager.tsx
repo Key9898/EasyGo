@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { db } from '../../../firebaseConfig'
-import { collection, getDocs, orderBy, query, updateDoc, doc, Timestamp } from 'firebase/firestore'
+import { collection, orderBy, query, updateDoc, doc, Timestamp, onSnapshot } from 'firebase/firestore'
 import { ClipboardList, Phone, Calendar, MessageSquare, User, CheckCircle, XCircle, Clock } from 'lucide-react'
 
 import type { SubscriptionRequest } from '../../../types'
@@ -11,33 +11,31 @@ export default function SubscriptionRequestsManager() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'contacted' | 'confirmed' | 'cancelled'>('all')
 
   useEffect(() => {
-    fetchItems()
-  }, [])
-
-  const fetchItems = async () => {
     if (!db) {
       setLoading(false)
       window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'error', title: 'Error', message: 'Service unavailable' } }))
       return
     }
-    try {
-      const q = query(collection(db!, 'subscriptionRequests'), orderBy('createdAt', 'desc'))
-      const snapshot = await getDocs(q)
+
+    const q = query(collection(db, 'subscriptionRequests'), orderBy('createdAt', 'desc'))
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as SubscriptionRequest[]
       setItems(data)
-    } catch (err) {
-      window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'error', title: 'Error', message: 'Failed to load subscription requests' } }))
-    } finally {
       setLoading(false)
-    }
-  }
+    }, (err) => {
+      window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'error', title: 'Error', message: 'Failed to load subscription requests' } }))
+      setLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [])
 
   const handleStatus = async (id: string, status: SubscriptionRequest['status']) => {
     if (!db) return
     try {
       await updateDoc(doc(db!, 'subscriptionRequests', id), { status })
       window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'success', title: 'Updated', message: 'Status updated' } }))
-      fetchItems()
     } catch {
       window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'error', title: 'Error', message: 'Failed to update' } }))
     }

@@ -3,10 +3,12 @@ import {
     collection,
     query,
     orderBy,
-    onSnapshot
+    onSnapshot,
+    deleteDoc,
+    doc
 } from 'firebase/firestore'
 import { db } from '../../../firebaseConfig'
-import { User, Calendar, Mail, ShieldCheck } from 'lucide-react'
+import { User, Calendar, Mail, ShieldCheck, Trash2 } from 'lucide-react'
 
 interface UserData {
     id: string
@@ -45,6 +47,31 @@ export default function UserManager() {
 
         return () => unsubscribe()
     }, [])
+
+    const handleDeleteUser = async (userId: string, userEmail: string) => {
+        if (userEmail === 'key.w.aung.dev@gmail.com') {
+            alert('Cannot delete the main admin account.')
+            return
+        }
+
+        if (!confirm(`Are you sure you want to delete user ${userEmail}? This will remove their profile data from Firestore.`)) {
+            return
+        }
+
+        if (!db) return
+
+        try {
+            await deleteDoc(doc(db, 'users', userId))
+            window.dispatchEvent(new CustomEvent('app:notify', {
+                detail: { type: 'success', title: 'Success', message: 'User profile deleted' }
+            }))
+        } catch (error) {
+            console.error('Error deleting user:', error)
+            window.dispatchEvent(new CustomEvent('app:notify', {
+                detail: { type: 'error', title: 'Error', message: 'Failed to delete user' }
+            }))
+        }
+    }
 
     const formatDate = (timestamp: any) => {
         if (!timestamp) return 'N/A'
@@ -87,12 +114,13 @@ export default function UserManager() {
                                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Email</th>
                                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Role</th>
                                 <th className="px-6 py-4 text-sm font-semibold text-slate-700">Joined</th>
+                                <th className="px-6 py-4 text-sm font-semibold text-slate-700">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {users.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
                                         No users found in database.
                                     </td>
                                 </tr>
@@ -140,6 +168,17 @@ export default function UserManager() {
                                                 <Calendar className="w-4 h-4 text-slate-400" />
                                                 {formatDate(user.createdAt)}
                                             </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {user.email !== 'key.w.aung.dev@gmail.com' && (
+                                                <button
+                                                    onClick={() => handleDeleteUser(user.id, user.email)}
+                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Delete User Profile"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))
