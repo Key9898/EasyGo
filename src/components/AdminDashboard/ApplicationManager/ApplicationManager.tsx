@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { MessageSquare, Clock, Eye, CheckCircle, XCircle } from 'lucide-react'
 import { db } from '../../../firebaseConfig'
 import {
     collection,
@@ -8,49 +7,54 @@ import {
     query,
     orderBy,
     deleteDoc,
-    onSnapshot
+    getDocs
 } from 'firebase/firestore'
-
-interface Application {
-    id: string
-    fullName: string
-    email: string
-    phone: string
-    jobTitle: string
-    coverLetter: string
-    cvFileName: string
-    status: 'pending' | 'reviewed' | 'accepted' | 'rejected'
-    userId: string
-    createdAt: any
-}
+import ApplicationsTable, { type Application } from './components/ApplicationsTable'
+import ApplicationsStats from './components/ApplicationsStats'
+import Pagination from '../Common/Pagination'
 
 export default function ApplicationManager() {
     const [applications, setApplications] = useState<Application[]>([])
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState<'all' | 'pending' | 'reviewed' | 'accepted' | 'rejected'>('all')
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 10
+
     useEffect(() => {
+        fetchApplications()
+    }, [])
+
+    const fetchApplications = async () => {
         if (!db) {
             setLoading(false)
             return
         }
 
-        const q = query(collection(db, 'applications'), orderBy('createdAt', 'desc'))
+        try {
+            setLoading(true)
+            const q = query(
+                collection(db, 'applications'),
+                orderBy('createdAt', 'desc')
+            )
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const applicationsData = snapshot.docs.map(doc => ({
+            const snapshot = await getDocs(q)
+            const data = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             })) as Application[]
-            setApplications(applicationsData)
-            setLoading(false)
-        }, (error) => {
-            console.error('Error fetching applications:', error)
-            setLoading(false)
-        })
 
-        return () => unsubscribe()
-    }, [])
+            setApplications(data)
+        } catch (error) {
+            console.error('Error fetching applications:', error)
+            window.dispatchEvent(new CustomEvent('app:notify', {
+                detail: { type: 'error', title: 'Error', message: 'Failed to load applications' }
+            }))
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const handleStatusChange = async (applicationId: string, newStatus: Application['status']) => {
         if (!db) return
@@ -58,6 +62,11 @@ export default function ApplicationManager() {
             await updateDoc(doc(db!, 'applications', applicationId), {
                 status: newStatus
             })
+
+            // Optimistic update
+            setApplications(prev => prev.map(app =>
+                app.id === applicationId ? { ...app, status: newStatus } : app
+            ))
 
             window.dispatchEvent(new CustomEvent('app:notify', {
                 detail: { type: 'success', title: 'Success', message: 'Application status updated' }
@@ -76,6 +85,10 @@ export default function ApplicationManager() {
 
         try {
             await deleteDoc(doc(db!, 'applications', applicationId))
+
+            // Optimistic update
+            setApplications(prev => prev.filter(app => app.id !== applicationId))
+
             window.dispatchEvent(new CustomEvent('app:notify', {
                 detail: { type: 'success', title: 'Deleted', message: 'Application deleted successfully' }
             }))
@@ -87,9 +100,22 @@ export default function ApplicationManager() {
         }
     }
 
+    // Filter Logic
     const filteredApplications = filter === 'all'
         ? applications
         : applications.filter(a => a.status === filter)
+
+    // Pagination Logic
+    const totalPages = Math.ceil(filteredApplications.length / ITEMS_PER_PAGE)
+    const paginatedApplications = filteredApplications.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    )
+
+    // Reset page on filter change
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [filter])
 
     if (loading) {
         return (
@@ -122,141 +148,21 @@ export default function ApplicationManager() {
                 </div>
             </div>
 
-            {/* Applications Table */}
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Applicant</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Position</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Contact</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">CV</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
-                            {filteredApplications.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                                        No applications found
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredApplications.map((app) => (
-                                    <tr key={app.id} className="hover:bg-slate-50">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-slate-900">{app.fullName}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-slate-900">{app.jobTitle}</div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="text-sm text-slate-900">{app.email}</div>
-                                            <div className="text-sm text-slate-500">{app.phone}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-slate-500">{app.cvFileName}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <select
-                                                value={app.status}
-                                                onChange={(e) => handleStatusChange(app.id, e.target.value as Application['status'])}
-                                                className={`px-3 py-1 rounded-full text-xs font-semibold ${app.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                    app.status === 'reviewed' ? 'bg-blue-100 text-blue-800' :
-                                                        app.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                                                            'bg-red-100 text-red-800'
-                                                    }`}
-                                            >
-                                                <option value="pending">Pending</option>
-                                                <option value="reviewed">Reviewed</option>
-                                                <option value="accepted">Accepted</option>
-                                                <option value="rejected">Rejected</option>
-                                            </select>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            <button
-                                                onClick={() => handleDelete(app.id)}
-                                                className="text-red-600 hover:text-red-900 font-medium"
-                                            >
-                                                Delete
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <ApplicationsTable
+                applications={paginatedApplications}
+                onStatusChange={handleStatusChange}
+                onDelete={handleDelete}
+            />
 
-            {/* Summary Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-slate-100 rounded-lg">
-                            <MessageSquare className="w-5 h-5 text-slate-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Total Applications</p>
-                            <p className="text-2xl font-bold text-slate-900">{applications.length}</p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-orange-100 rounded-lg">
-                            <Clock className="w-5 h-5 text-orange-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Pending</p>
-                            <p className="text-2xl font-bold text-slate-900">
-                                {applications.filter(a => a.status === 'pending').length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                            <Eye className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Reviewed</p>
-                            <p className="text-2xl font-bold text-slate-900">
-                                {applications.filter(a => a.status === 'reviewed').length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-100 rounded-lg">
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Accepted</p>
-                            <p className="text-2xl font-bold text-slate-900">
-                                {applications.filter(a => a.status === 'accepted').length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-red-100 rounded-lg">
-                            <XCircle className="w-5 h-5 text-red-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Rejected</p>
-                            <p className="text-2xl font-bold text-slate-900">
-                                {applications.filter(a => a.status === 'rejected').length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalPosts={filteredApplications.length}
+                postsPerPage={ITEMS_PER_PAGE}
+            />
+
+            <ApplicationsStats applications={applications} />
         </div>
     )
 }

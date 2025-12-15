@@ -1,5 +1,5 @@
 import { Mail, Phone, MessageSquare, Clock, CheckCircle } from 'lucide-react'
-import type { Inquiry } from '../../../types'
+import type { Inquiry } from '../../../../types'
 
 interface InquiryCardProps {
     inquiry: Inquiry
@@ -20,7 +20,7 @@ const statusIcons = {
 }
 
 export default function InquiryCard({ inquiry, formattedDate, onStatusChange }: InquiryCardProps) {
-    const StatusIcon = statusIcons[inquiry.status]
+    const StatusIcon = statusIcons[inquiry.status as keyof typeof statusIcons]
 
     return (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
@@ -50,7 +50,7 @@ export default function InquiryCard({ inquiry, formattedDate, onStatusChange }: 
 
                         {/* Status Badge */}
                         <div className="flex items-center gap-2">
-                            <span className={`px-3 py-1 inline-flex items-center gap-1.5 text-xs font-semibold rounded-full ${statusColors[inquiry.status]}`}>
+                            <span className={`px-3 py-1 inline-flex items-center gap-1.5 text-xs font-semibold rounded-full ${statusColors[inquiry.status as keyof typeof statusColors]}`}>
                                 <StatusIcon className="w-3.5 h-3.5" />
                                 {inquiry.status}
                             </span>

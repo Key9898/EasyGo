@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { MessageSquare, Clock, CheckCircle } from 'lucide-react'
+import { MessageSquare } from 'lucide-react'
 import { db } from '../../../firebaseConfig'
 import {
     collection,
@@ -11,9 +11,9 @@ import {
     onSnapshot
 } from 'firebase/firestore'
 import type { Inquiry } from '../../../types'
-import InquiryCard from './InquiryCard'
-
-
+import InquiryCard from './components/InquiryCard'
+import InquiryStats from './components/InquiryStats'
+import Pagination from '../Common/Pagination'
 
 export default function InquiryList() {
     const [inquiries, setInquiries] = useState<Inquiry[]>([])
@@ -23,6 +23,10 @@ export default function InquiryList() {
     const [inquiriesData, setInquiriesData] = useState<any[]>([])
     const [messagesData, setMessagesData] = useState<any[]>([])
     const [notificationsData, setNotificationsData] = useState<any[]>([])
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 10
 
     useEffect(() => {
         if (!db) {
@@ -105,6 +109,13 @@ export default function InquiryList() {
         }
     }
 
+    // Pagination Logic
+    const totalPages = Math.ceil(filteredInquiries.length / ITEMS_PER_PAGE)
+    const paginatedInquiries = filteredInquiries.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    )
+
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
@@ -138,13 +149,13 @@ export default function InquiryList() {
 
             {/* Inquiries List */}
             <div className="space-y-4">
-                {filteredInquiries.length === 0 ? (
+                {paginatedInquiries.length === 0 ? (
                     <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
                         <MessageSquare className="w-12 h-12 text-slate-400 mx-auto mb-4" />
                         <p className="text-slate-500">No inquiries found.</p>
                     </div>
                 ) : (
-                    filteredInquiries.map((inquiry) => (
+                    paginatedInquiries.map((inquiry) => (
                         <InquiryCard
                             key={inquiry.id}
                             inquiry={inquiry}
@@ -155,50 +166,16 @@ export default function InquiryList() {
                 )}
             </div>
 
+            <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalPosts={filteredInquiries.length}
+                postsPerPage={ITEMS_PER_PAGE}
+            />
+
             {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-orange-100 rounded-lg">
-                            <Clock className="w-5 h-5 text-orange-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Total Inquiries</p>
-                            <p className="text-2xl font-bold text-slate-900">
-                                {inquiries.length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                            <MessageSquare className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Contacted</p>
-                            <p className="text-2xl font-bold text-slate-900">
-                                {inquiries.filter(i => i.status === 'contacted').length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-100 rounded-lg">
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Resolved</p>
-                            <p className="text-2xl font-bold text-slate-900">
-                                {inquiries.filter(i => i.status === 'resolved').length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <InquiryStats inquiries={inquiries} />
         </div>
     )
 }

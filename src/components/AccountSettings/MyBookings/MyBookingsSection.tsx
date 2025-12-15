@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { db, auth } from '../../firebaseConfig'
+import { db, auth } from '../../../firebaseConfig'
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 import { Calendar, MapPin, Car, Clock } from 'lucide-react'
-import type { Booking } from '../../types'
+import type { Booking } from '../../../types'
 
 export default function MyBookingsSection() {
     const [bookings, setBookings] = useState<Booking[]>([])

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Calendar, Clock, CheckCircle, CheckCheck, XCircle } from 'lucide-react'
 import { db } from '../../../firebaseConfig'
 import {
     collection,
@@ -9,11 +8,12 @@ import {
     query,
     orderBy,
     where,
-    limit,
-    startAfter
+    limit
 } from 'firebase/firestore'
 import type { Booking } from '../../../types'
 import BookingTable from './BookingTable'
+import BookingStats from './components/BookingStats'
+import Pagination from '../Common/Pagination'
 
 export default function BookingManager() {
     const [bookings, setBookings] = useState<Booking[]>([])
@@ -21,62 +21,33 @@ export default function BookingManager() {
     const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed' | 'completed' | 'cancelled'>('all')
 
     // Pagination State
-    const [lastVisible, setLastVisible] = useState<any>(null)
-    const [hasMore, setHasMore] = useState(true)
-    const [loadingMore, setLoadingMore] = useState(false)
-    const BOOKINGS_PER_PAGE = 20
+    const [currentPage, setCurrentPage] = useState(1)
+    const BOOKINGS_PER_PAGE = 10
 
     useEffect(() => {
-        fetchBookings(true)
+        fetchBookings()
     }, [])
 
-    const fetchBookings = async (isInitial = false) => {
+    const fetchBookings = async () => {
         if (!db) {
             setLoading(false)
             return
         }
 
         try {
-            if (isInitial) {
-                setLoading(true)
-            } else {
-                setLoadingMore(true)
-            }
-
-            let q = query(
+            setLoading(true)
+            const q = query(
                 collection(db, 'bookings'),
-                orderBy('createdAt', 'desc'),
-                limit(BOOKINGS_PER_PAGE)
+                orderBy('createdAt', 'desc')
             )
 
-            if (!isInitial && lastVisible) {
-                q = query(q, startAfter(lastVisible))
-            }
-
             const querySnapshot = await getDocs(q)
-
-            // Update cursor
-            const lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1]
-            setLastVisible(lastVisibleDoc)
-
-            // Check if we have more
-            if (querySnapshot.docs.length < BOOKINGS_PER_PAGE) {
-                setHasMore(false)
-            } else {
-                setHasMore(true)
-            }
-
             const newBookings = querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             })) as Booking[]
 
-            if (isInitial) {
-                setBookings(newBookings)
-            } else {
-                setBookings(prev => [...prev, ...newBookings])
-            }
-
+            setBookings(newBookings)
         } catch (error) {
             console.error('Error fetching bookings:', error)
             window.dispatchEvent(new CustomEvent('app:notify', {
@@ -84,7 +55,6 @@ export default function BookingManager() {
             }))
         } finally {
             setLoading(false)
-            setLoadingMore(false)
         }
     }
 
@@ -111,8 +81,6 @@ export default function BookingManager() {
                     } else if (newStatus === 'completed' || newStatus === 'cancelled') {
                         carStatus = 'available'
                     } else if (newStatus === 'pending') {
-                        // If moved back to pending, maybe make available or keep as is?
-                        // Usually pending means not yet booked, so available.
                         carStatus = 'available'
                     }
 
@@ -122,11 +90,13 @@ export default function BookingManager() {
                 }
             }
 
+            // Optimistic update
+            setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b))
+
             window.dispatchEvent(new CustomEvent('app:notify', {
                 detail: { type: 'success', title: 'Success', message: 'Booking status updated' }
             }))
 
-            fetchBookings()
         } catch (error) {
             console.error('Error updating booking:', error)
             window.dispatchEvent(new CustomEvent('app:notify', {
@@ -135,10 +105,20 @@ export default function BookingManager() {
         }
     }
 
-
     const filteredBookings = filter === 'all'
         ? bookings
         : bookings.filter(b => b.status === filter)
+
+    // Pagination Logic
+    const totalPages = Math.ceil(filteredBookings.length / BOOKINGS_PER_PAGE)
+    const paginatedBookings = filteredBookings.slice(
+        (currentPage - 1) * BOOKINGS_PER_PAGE,
+        currentPage * BOOKINGS_PER_PAGE
+    )
+
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [filter])
 
     if (loading) {
         return (
@@ -173,89 +153,20 @@ export default function BookingManager() {
 
             {/* Bookings Table */}
             <BookingTable
-                bookings={filteredBookings}
+                bookings={paginatedBookings}
                 onStatusChange={handleStatusChange}
             />
 
-            {/* Load More Button */}
-            {hasMore && filter === 'all' && (
-                <div className="flex justify-center mt-4">
-                    <button
-                        onClick={() => fetchBookings(false)}
-                        disabled={loadingMore}
-                        className="px-6 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50 text-sm font-medium"
-                    >
-                        {loadingMore ? 'Loading more...' : 'Load More Bookings'}
-                    </button>
-                </div>
-            )}
+            <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalPosts={filteredBookings.length}
+                postsPerPage={BOOKINGS_PER_PAGE}
+            />
 
             {/* Summary Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-slate-100 rounded-lg">
-                            <Calendar className="w-5 h-5 text-slate-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Total Bookings</p>
-                            <p className="text-2xl font-bold text-slate-900">{bookings.length}</p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-orange-100 rounded-lg">
-                            <Clock className="w-5 h-5 text-orange-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Pending</p>
-                            <p className="text-2xl font-bold text-slate-900">
-                                {bookings.filter(b => b.status === 'pending').length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-100 rounded-lg">
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Confirmed</p>
-                            <p className="text-2xl font-bold text-slate-900">
-                                {bookings.filter(b => b.status === 'confirmed').length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                            <CheckCheck className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Completed</p>
-                            <p className="text-2xl font-bold text-slate-900">
-                                {bookings.filter(b => b.status === 'completed').length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-red-100 rounded-lg">
-                            <XCircle className="w-5 h-5 text-red-600" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-600">Cancelled</p>
-                            <p className="text-2xl font-bold text-slate-900">
-                                {bookings.filter(b => b.status === 'cancelled').length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <BookingStats bookings={bookings} />
         </div>
     )
 }

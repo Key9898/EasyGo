@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import Header from '../../components/Layouts/Common/Header'
 import Footer from '../../components/Layouts/Common/Footer'
-import ProfileSection from '../../components/AccountSettings/ProfileSection'
-import SecuritySection from '../../components/AccountSettings/SecuritySection'
-import MyReviewsSection from '../../components/AccountSettings/MyReviewsSection'
-import MyApplicationsSection from '../../components/AccountSettings/MyApplicationsSection'
-import MyCorporateRequestsSection from '../../components/AccountSettings/MyCorporateRequestsSection'
+import ProfileSection from '../../components/AccountSettings/MyProfile/ProfileSection'
+import SecuritySection from '../../components/AccountSettings/MyProfile/SecuritySection'
+import MyReviewsSection from '../../components/AccountSettings/MyReviews/MyReviewsSection'
+import MyApplicationsSection from '../../components/AccountSettings/MyApplications/MyApplicationsSection'
+import MyCorporateRequestsSection from '../../components/AccountSettings/MyCorporateRequest/MyCorporateRequestsSection'
 
-import MySubscriptionsSection from '../../components/AccountSettings/MySubscriptionsSection'
-import MyBookingsSection from '../../components/AccountSettings/MyBookingsSection'
+import MySubscriptionsSection from '../../components/AccountSettings/MySubscriptionRequest/MySubscriptionsSection'
+import MyBookingsSection from '../../components/AccountSettings/MyBookings/MyBookingsSection'
 
 interface AccountSettingsProps { onNavigate?: (page: string) => void }
 

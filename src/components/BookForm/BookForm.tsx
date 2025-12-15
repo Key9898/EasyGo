@@ -225,6 +225,7 @@ export default function BookForm({ isOpen, onClose, carName, carPrice, carImage 
                                 onChange={(value) => setFormData({ ...formData, pickupDate: value })}
                                 placeholder=""
                                 required
+                                min={new Date().toISOString().split('T')[0]}
                             />
 
                             <BookingFormInput
@@ -234,6 +235,7 @@ export default function BookForm({ isOpen, onClose, carName, carPrice, carImage 
                                 onChange={(value) => setFormData({ ...formData, returnDate: value })}
                                 placeholder=""
                                 required
+                                min={formData.pickupDate || new Date().toISOString().split('T')[0]}
                             />
                         </div>
 

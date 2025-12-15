@@ -160,6 +160,7 @@ export default function SearchWidget({ initialValues, onNavigate }: SearchWidget
                         <input
                             type="date"
                             id="pickupDate"
+                            min={new Date().toISOString().split('T')[0]}
                             value={searchData.pickupDate}
                             onChange={(e) => setSearchData({ ...searchData, pickupDate: e.target.value })}
                             className="w-full rounded-lg bg-white/10 border border-white/20 px-4 py-3 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent [color-scheme:dark]"
@@ -175,6 +176,7 @@ export default function SearchWidget({ initialValues, onNavigate }: SearchWidget
                         <input
                             type="date"
                             id="returnDate"
+                            min={searchData.pickupDate || new Date().toISOString().split('T')[0]}
                             value={searchData.returnDate}
                             onChange={(e) => setSearchData({ ...searchData, returnDate: e.target.value })}
                             className="w-full rounded-lg bg-white/10 border border-white/20 px-4 py-3 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent [color-scheme:dark]"

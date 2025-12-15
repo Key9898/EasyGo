@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { auth } from '../../firebaseConfig'
+import { auth } from '../../../firebaseConfig'
 import { updatePassword } from 'firebase/auth'
 
 export default function SecuritySection() {
