@@ -104,13 +104,15 @@ export default function UsersTable({ users, onDeleteUser }: UsersTableProps) {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <button
-                                        onClick={() => onDeleteUser(user.id, user.email)}
-                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                        title="Delete User Profile"
-                                    >
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
+                                    {user.email !== 'key.w.aung.dev@gmail.com' && (
+                                        <button
+                                            onClick={() => onDeleteUser(user.id, user.email)}
+                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Delete User Profile"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    )}
                                 </td>
                             </tr>
                         ))}
