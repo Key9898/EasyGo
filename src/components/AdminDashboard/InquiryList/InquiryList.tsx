@@ -3,12 +3,12 @@ import { MessageSquare, Clock, CheckCircle } from 'lucide-react'
 import { db } from '../../../firebaseConfig'
 import {
     collection,
-    getDocs,
     updateDoc,
     doc,
     query,
     orderBy,
-    Timestamp
+    Timestamp,
+    onSnapshot
 } from 'firebase/firestore'
 import type { Inquiry } from '../../../types'
 import InquiryCard from './InquiryCard'
@@ -20,56 +20,48 @@ export default function InquiryList() {
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState<'all' | 'new' | 'contacted' | 'resolved'>('all')
 
-    useEffect(() => {
-        fetchInquiries()
-    }, [])
+    const [inquiriesData, setInquiriesData] = useState<any[]>([])
+    const [messagesData, setMessagesData] = useState<any[]>([])
+    const [notificationsData, setNotificationsData] = useState<any[]>([])
 
-    const fetchInquiries = async () => {
+    useEffect(() => {
         if (!db) {
             setLoading(false)
-            window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'error', title: 'Error', message: 'Service unavailable' } }))
             return
         }
-        try {
-            const inquiriesQuery = query(collection(db!, 'inquiries'), orderBy('createdAt', 'desc'))
-            const messagesQuery = query(collection(db!, 'messages'), orderBy('createdAt', 'desc'))
-            const notificationsQuery = query(collection(db!, 'notifications'), orderBy('createdAt', 'desc'))
 
-            const [inquiriesSnapshot, messagesSnapshot, notificationsSnapshot] = await Promise.all([
-                getDocs(inquiriesQuery),
-                getDocs(messagesQuery),
-                getDocs(notificationsQuery)
-            ])
+        const q1 = query(collection(db, 'inquiries'), orderBy('createdAt', 'desc'))
+        const q2 = query(collection(db, 'messages'), orderBy('createdAt', 'desc'))
+        const q3 = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'))
 
-            const mixedInquiries = [
-                ...inquiriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any, source: 'inquiries' })),
-                ...messagesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any, source: 'messages' })),
-                ...notificationsSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data() as any,
-                    status: (doc.data() as any).status || 'new',
-                    message: 'Notify Me Request',
-                    source: 'notifications'
-                }))
-            ] as unknown as Inquiry[]
+        const unsub1 = onSnapshot(q1, (snap) => setInquiriesData(snap.docs.map(d => ({ id: d.id, ...d.data(), source: 'inquiries' }))))
+        const unsub2 = onSnapshot(q2, (snap) => setMessagesData(snap.docs.map(d => ({ id: d.id, ...d.data(), source: 'messages' }))))
+        const unsub3 = onSnapshot(q3, (snap) => setNotificationsData(snap.docs.map(d => ({
+            id: d.id,
+            ...d.data(),
+            status: (d.data() as any).status || 'new',
+            message: 'Notify Me Request',
+            source: 'notifications'
+        }))))
 
-            // Sort mixed array by createdAt desc
-            mixedInquiries.sort((a, b) => {
-                const t1 = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0)
-                const t2 = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0)
-                return t2 - t1
-            })
+        setLoading(false)
 
-            setInquiries(mixedInquiries)
-        } catch (error) {
-            console.error('Error fetching inquiries:', error)
-            window.dispatchEvent(new CustomEvent('app:notify', {
-                detail: { type: 'error', title: 'Error', message: 'Failed to load inquiries' }
-            }))
-        } finally {
-            setLoading(false)
+        return () => {
+            unsub1()
+            unsub2()
+            unsub3()
         }
-    }
+    }, [])
+
+    useEffect(() => {
+        const mixed = [...inquiriesData, ...messagesData, ...notificationsData] as unknown as Inquiry[]
+        mixed.sort((a, b) => {
+            const t1 = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0)
+            const t2 = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0)
+            return t2.getTime() - t1.getTime()
+        })
+        setInquiries(mixed)
+    }, [inquiriesData, messagesData, notificationsData])
 
     const handleStatusChange = async (inquiryId: string, newStatus: Inquiry['status']) => {
         if (!db) return
@@ -85,8 +77,6 @@ export default function InquiryList() {
             window.dispatchEvent(new CustomEvent('app:notify', {
                 detail: { type: 'success', title: 'Success', message: 'Inquiry status updated' }
             }))
-
-            fetchInquiries()
         } catch (error) {
             console.error('Error updating inquiry:', error)
             window.dispatchEvent(new CustomEvent('app:notify', {

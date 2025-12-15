@@ -3,12 +3,12 @@ import { Plus } from 'lucide-react'
 import { db } from '../../../firebaseConfig'
 import {
     collection,
-    getDocs,
     addDoc,
     updateDoc,
     deleteDoc,
     doc,
-    serverTimestamp
+    serverTimestamp,
+    onSnapshot
 } from 'firebase/firestore'
 import type { Car } from '../../../types'
 import CarTable from './CarTable'
@@ -22,31 +22,27 @@ export default function FleetManager() {
     const [editingCar, setEditingCar] = useState<Car | null>(null)
 
     useEffect(() => {
-        fetchCars()
-    }, [])
-
-    const fetchCars = async () => {
         if (!db) {
             setLoading(false)
-            window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'error', title: 'Error', message: 'Service unavailable' } }))
             return
         }
-        try {
-            const querySnapshot = await getDocs(collection(db!, 'cars'))
-            const carsData = querySnapshot.docs.map(doc => ({
+
+        const q = collection(db, 'cars')
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const carsData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             })) as Car[]
             setCars(carsData)
-        } catch (error) {
-            console.error('Error fetching cars:', error)
-            window.dispatchEvent(new CustomEvent('app:notify', {
-                detail: { type: 'error', title: 'Error', message: 'Failed to load cars' }
-            }))
-        } finally {
             setLoading(false)
-        }
-    }
+        }, (error) => {
+            console.error('Error fetching cars:', error)
+            setLoading(false)
+        })
+
+        return () => unsubscribe()
+    }, [])
 
     const handleOpenModal = (car?: Car) => {
         if (car) {
@@ -86,7 +82,6 @@ export default function FleetManager() {
             }
 
             handleCloseModal()
-            fetchCars()
         } catch (error) {
             console.error('Error saving car:', error)
             window.dispatchEvent(new CustomEvent('app:notify', {
@@ -104,7 +99,6 @@ export default function FleetManager() {
             window.dispatchEvent(new CustomEvent('app:notify', {
                 detail: { type: 'success', title: 'Success', message: 'Car deleted successfully' }
             }))
-            fetchCars()
         } catch (error) {
             console.error('Error deleting car:', error)
             window.dispatchEvent(new CustomEvent('app:notify', {

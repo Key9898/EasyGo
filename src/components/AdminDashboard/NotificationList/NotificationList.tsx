@@ -3,12 +3,12 @@ import { Bell, Phone, Clock } from 'lucide-react'
 import { db } from '../../../firebaseConfig'
 import {
     collection,
-    getDocs,
     query,
     orderBy,
     deleteDoc,
     doc,
-    Timestamp
+    Timestamp,
+    onSnapshot
 } from 'firebase/firestore'
 
 interface Notification {
@@ -23,32 +23,27 @@ export default function NotificationList() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        fetchNotifications()
-    }, [])
-
-    const fetchNotifications = async () => {
         if (!db) {
             setLoading(false)
-            window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'error', title: 'Error', message: 'Service unavailable' } }))
             return
         }
-        try {
-            const q = query(collection(db!, 'notifications'), orderBy('createdAt', 'desc'))
-            const querySnapshot = await getDocs(q)
-            const notificationsData = querySnapshot.docs.map(doc => ({
+
+        const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'))
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const notificationsData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             })) as Notification[]
             setNotifications(notificationsData)
-        } catch (error) {
-            console.error('Error fetching notifications:', error)
-            window.dispatchEvent(new CustomEvent('app:notify', {
-                detail: { type: 'error', title: 'Error', message: 'Failed to load notifications' }
-            }))
-        } finally {
             setLoading(false)
-        }
-    }
+        }, (error) => {
+            console.error('Error fetching notifications:', error)
+            setLoading(false)
+        })
+
+        return () => unsubscribe()
+    }, [])
 
     const handleDelete = async (id: string) => {
         if (!confirm('Are you sure you want to delete this notification?')) return
@@ -59,7 +54,6 @@ export default function NotificationList() {
             window.dispatchEvent(new CustomEvent('app:notify', {
                 detail: { type: 'success', title: 'Success', message: 'Notification deleted' }
             }))
-            fetchNotifications()
         } catch (error) {
             console.error('Error deleting notification:', error)
             window.dispatchEvent(new CustomEvent('app:notify', {

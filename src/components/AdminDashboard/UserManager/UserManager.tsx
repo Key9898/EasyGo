@@ -3,7 +3,7 @@ import {
     collection,
     query,
     orderBy,
-    getDocs
+    onSnapshot
 } from 'firebase/firestore'
 import { db } from '../../../firebaseConfig'
 import { User, Calendar, Mail, ShieldCheck } from 'lucide-react'
@@ -22,33 +22,29 @@ export default function UserManager() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        fetchUsers()
-    }, [])
-
-    const fetchUsers = async () => {
         if (!db) {
             setLoading(false)
             return
         }
-        try {
-            // Note: 'users' collection might not have all users if they sign in via Google and no doc is created.
-            // But based on your rules, you have a 'users' collection.
-            const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'))
-            const snapshot = await getDocs(q)
+
+        const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'))
+
+        // Real-time listener
+        const unsubscribe = onSnapshot(q, (snapshot) => {
             const usersList = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             })) as UserData[]
             setUsers(usersList)
-        } catch (error) {
-            console.error('Error fetching users:', error)
-            window.dispatchEvent(new CustomEvent('app:notify', {
-                detail: { type: 'error', title: 'Error', message: 'Failed to load users' }
-            }))
-        } finally {
             setLoading(false)
-        }
-    }
+        }, (error) => {
+            console.error('Error fetching users:', error)
+            setLoading(false)
+            // Optional: Show error only if it's not a permission issue causing a flood
+        })
+
+        return () => unsubscribe()
+    }, [])
 
     const formatDate = (timestamp: any) => {
         if (!timestamp) return 'N/A'
