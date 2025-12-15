@@ -24,6 +24,7 @@ export default function SubscriptionRequestsManager() {
       setItems(data)
       setLoading(false)
     }, (err) => {
+      console.error('Subscription onSnapshot error:', err)
       window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'error', title: 'Error', message: 'Failed to load subscription requests' } }))
       setLoading(false)
     })
