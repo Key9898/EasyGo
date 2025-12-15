@@ -39,7 +39,7 @@ export default function Header({ onNavigate }: HeaderProps) {
   // Auth State
   const [user, setUser] = useState<User | null>(null)
   const [authModalOpen, setAuthModalOpen] = useState(false)
-  const [authModalView, setAuthModalView] = useState<'signin' | 'signup'>('signin')
+  const [authModalView, setAuthModalView] = useState<'signin' | 'signup' | 'forgotPassword'>('signin')
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
 
   // Check if we are on the home page

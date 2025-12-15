@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
 import { db } from '../../firebaseConfig'
 import { collection, getDocs } from 'firebase/firestore'
+import { useQuery } from '@tanstack/react-query'
 import Header from '../../components/Layouts/Common/Header'
 import MainHeroBanner from '../../components/Layouts/HeroBanner/MainHeroBanner/MainHeroBanner'
 import Breadcrumb from '../../components/Layouts/Common/Breadcrumb'
@@ -13,6 +14,7 @@ import FleetPagination from './FleetPagination'
 import VehicleCard from './VehicleCard'
 import ActiveFilters from './ActiveFilters'
 import EmptyState from './EmptyState'
+import CarLoader from '../../components/Layouts/Common/CarLoader'
 import type { FleetProps, Vehicle, SearchParams } from '../../types'
 
 
@@ -25,8 +27,6 @@ export default function Fleet({ onNavigate }: FleetProps) {
     const location = useLocation()
     const [sortBy, setSortBy] = useState('latest')
     const [currentPage, setCurrentPage] = useState(1)
-    const [firestoreVehicles, setFirestoreVehicles] = useState<Vehicle[]>([])
-    const [reviewStatsByCar, setReviewStatsByCar] = useState<Record<string, { avg: number; count: number }>>({})
     const [searchParams, setSearchParams] = useState<SearchParams>({})
 
     const [bookingModal, setBookingModal] = useState<{
@@ -34,70 +34,55 @@ export default function Fleet({ onNavigate }: FleetProps) {
         car: Vehicle | null
     }>({ isOpen: false, car: null })
 
+    // ✅ Cached Data Fetching: Vehicles
+    const { data: firestoreVehicles = [], isLoading: loadingVehicles } = useQuery({
+        queryKey: ['vehicles'], // Cache key
+        queryFn: async () => {
+            if (!db) return []
+            const querySnapshot = await getDocs(collection(db, 'cars'))
+            return querySnapshot.docs.map(doc => {
+                const data = doc.data()
+                return {
+                    id: doc.id,
+                    name: data.name,
+                    category: data.category === 'Luxury' ? 'MVP' : data.category,
+                    description: data.description,
+                    imageUrl: data.imageUrl,
+                    price: `${data.price.toLocaleString()} THB/day`,
+                    priceValue: Number(data.price),
+                    features: data.features || [],
+                    year: typeof data.year === 'number' ? data.year : (typeof data.year === 'string' ? Number(data.year) : undefined),
+                    status: data.status || 'available'
+                } as Vehicle
+            })
+        },
+        staleTime: 1000 * 60 * 5, // Cache for 5 mins
+    })
 
-
-    // Fetch vehicles from Firestore
-    useEffect(() => {
-        const fetchVehicles = async () => {
-            try {
-                const fdb = db
-                if (!fdb) return
-                const querySnapshot = await getDocs(collection(fdb, 'cars'))
-                const fetchedVehicles = querySnapshot.docs.map(doc => {
-                    const data = doc.data()
-                    return {
-                        id: doc.id,
-                        name: data.name,
-                        category: data.category === 'Luxury' ? 'MVP' : data.category,
-                        description: data.description,
-                        imageUrl: data.imageUrl,
-                        price: `${data.price.toLocaleString()} THB/day`,
-
-                        priceValue: Number(data.price),
-                        features: data.features || [],
-                        year: typeof data.year === 'number' ? data.year : (typeof data.year === 'string' ? Number(data.year) : undefined),
-                        status: data.status || 'available'
-                    } as Vehicle
-                })
-                setFirestoreVehicles(fetchedVehicles)
-            } catch (error) {
-                console.error("Error fetching vehicles:", error)
-            }
-        }
-
-        fetchVehicles()
-    }, [])
-
-
-
-    useEffect(() => {
-        const fetchReviews = async () => {
-            try {
-                const fdb = db
-                if (!fdb) return
-                const snaps = await getDocs(collection(fdb, 'reviews'))
-                const agg: Record<string, { sum: number; count: number }> = {}
-                snaps.docs.forEach(d => {
-                    const data = d.data() as { carName?: string; rating?: number }
-                    const name = data.carName || ''
-                    const rating = Number(data.rating) || 0
-                    if (!name || rating <= 0) return
-                    const cur = agg[name] || { sum: 0, count: 0 }
-                    agg[name] = { sum: cur.sum + rating, count: cur.count + 1 }
-                })
-                const stats: Record<string, { avg: number; count: number }> = {}
-                Object.keys(agg).forEach((k) => {
-                    const a = agg[k]
-                    stats[k] = { avg: Number((a.sum / a.count).toFixed(1)), count: a.count }
-                })
-                setReviewStatsByCar(stats)
-            } catch (error) {
-                console.error("Error fetching reviews:", error)
-            }
-        }
-
-        fetchReviews()
-    }, [])
+    // ✅ Cached Data Fetching: Reviews
+    const { data: reviewStatsByCar = {} } = useQuery({
+        queryKey: ['reviewStats'],
+        queryFn: async () => {
+            if (!db) return {}
+            const snaps = await getDocs(collection(db, 'reviews'))
+            const agg: Record<string, { sum: number; count: number }> = {}
+            snaps.docs.forEach(d => {
+                const data = d.data() as { carName?: string; rating?: number }
+                const name = data.carName || ''
+                const rating = Number(data.rating) || 0
+                if (!name || rating <= 0) return
+                const cur = agg[name] || { sum: 0, count: 0 }
+                agg[name] = { sum: cur.sum + rating, count: cur.count + 1 }
+            })
+            const stats: Record<string, { avg: number; count: number }> = {}
+            Object.keys(agg).forEach((k) => {
+                const a = agg[k]
+                stats[k] = { avg: Number((a.sum / a.count).toFixed(1)), count: a.count }
+            })
+            return stats
+        },
+        staleTime: 1000 * 60 * 10, // Cache for 10 mins
+    })
 
 
 
@@ -219,7 +204,9 @@ export default function Fleet({ onNavigate }: FleetProps) {
                         onClearFilters={handleClearFilters}
                     />
 
-                    {paginatedVehicles.length > 0 ? (
+                    {loadingVehicles ? (
+                        <CarLoader />
+                    ) : paginatedVehicles.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                             {paginatedVehicles.map((vehicle) => (
                                 <VehicleCard

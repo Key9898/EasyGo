@@ -9,10 +9,10 @@ import CheckboxField from './CheckboxField'
 interface SignInProps {
   onSwitchToSignUp?: () => void
   onClose?: () => void
-  onNavigate?: (page: string) => void
+  onForgotPassword?: () => void
 }
 
-export default function SignIn({ onSwitchToSignUp, onClose, onNavigate }: SignInProps = {}) {
+export default function SignIn({ onSwitchToSignUp, onClose, onForgotPassword }: SignInProps = {}) {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = e.currentTarget
@@ -78,7 +78,7 @@ export default function SignIn({ onSwitchToSignUp, onClose, onNavigate }: SignIn
             {/* Header */}
             <AuthHeader title="Sign in to your account" />
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <AuthFormInput
                 id="email"
                 name="email"
@@ -108,7 +108,7 @@ export default function SignIn({ onSwitchToSignUp, onClose, onNavigate }: SignIn
                 <div className="text-sm leading-6">
                   <button
                     type="button"
-                    onClick={() => onNavigate?.('forgotPassword')}
+                    onClick={() => onForgotPassword?.()}
                     className="font-semibold text-orange-600 hover:text-orange-500"
                   >
                     Forgot password?

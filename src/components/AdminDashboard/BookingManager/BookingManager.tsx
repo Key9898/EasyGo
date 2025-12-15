@@ -9,7 +9,8 @@ import {
     query,
     orderBy,
     where,
-    limit
+    limit,
+    startAfter
 } from 'firebase/firestore'
 import type { Booking } from '../../../types'
 import BookingTable from './BookingTable'
@@ -19,24 +20,63 @@ export default function BookingManager() {
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed' | 'completed' | 'cancelled'>('all')
 
+    // Pagination State
+    const [lastVisible, setLastVisible] = useState<any>(null)
+    const [hasMore, setHasMore] = useState(true)
+    const [loadingMore, setLoadingMore] = useState(false)
+    const BOOKINGS_PER_PAGE = 20
+
     useEffect(() => {
-        fetchBookings()
+        fetchBookings(true)
     }, [])
 
-    const fetchBookings = async () => {
+    const fetchBookings = async (isInitial = false) => {
         if (!db) {
             setLoading(false)
-            window.dispatchEvent(new CustomEvent('app:notify', { detail: { type: 'error', title: 'Error', message: 'Service unavailable' } }))
             return
         }
+
         try {
-            const q = query(collection(db!, 'bookings'), orderBy('createdAt', 'desc'))
+            if (isInitial) {
+                setLoading(true)
+            } else {
+                setLoadingMore(true)
+            }
+
+            let q = query(
+                collection(db, 'bookings'),
+                orderBy('createdAt', 'desc'),
+                limit(BOOKINGS_PER_PAGE)
+            )
+
+            if (!isInitial && lastVisible) {
+                q = query(q, startAfter(lastVisible))
+            }
+
             const querySnapshot = await getDocs(q)
-            const bookingsData = querySnapshot.docs.map(doc => ({
+
+            // Update cursor
+            const lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1]
+            setLastVisible(lastVisibleDoc)
+
+            // Check if we have more
+            if (querySnapshot.docs.length < BOOKINGS_PER_PAGE) {
+                setHasMore(false)
+            } else {
+                setHasMore(true)
+            }
+
+            const newBookings = querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             })) as Booking[]
-            setBookings(bookingsData)
+
+            if (isInitial) {
+                setBookings(newBookings)
+            } else {
+                setBookings(prev => [...prev, ...newBookings])
+            }
+
         } catch (error) {
             console.error('Error fetching bookings:', error)
             window.dispatchEvent(new CustomEvent('app:notify', {
@@ -44,6 +84,7 @@ export default function BookingManager() {
             }))
         } finally {
             setLoading(false)
+            setLoadingMore(false)
         }
     }
 
@@ -135,6 +176,19 @@ export default function BookingManager() {
                 bookings={filteredBookings}
                 onStatusChange={handleStatusChange}
             />
+
+            {/* Load More Button */}
+            {hasMore && filter === 'all' && (
+                <div className="flex justify-center mt-4">
+                    <button
+                        onClick={() => fetchBookings(false)}
+                        disabled={loadingMore}
+                        className="px-6 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50 text-sm font-medium"
+                    >
+                        {loadingMore ? 'Loading more...' : 'Load More Bookings'}
+                    </button>
+                </div>
+            )}
 
             {/* Summary Stats */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
