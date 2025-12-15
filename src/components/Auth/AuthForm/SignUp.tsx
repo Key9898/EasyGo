@@ -51,7 +51,7 @@ export default function SignUp({ onBackToSignIn, onClose, onNavigate }: SignUpPr
       }
 
       window.dispatchEvent(new CustomEvent('app:notify', {
-        detail: { type: 'success', title: 'Account created', message: 'You can now sign in to EasyGo.' }
+        detail: { type: 'success', title: 'Account created', message: 'Welcome to EasyGo!' }
       }))
 
       try {
@@ -60,14 +60,18 @@ export default function SignUp({ onBackToSignIn, onClose, onNavigate }: SignUpPr
             type: 'personal',
             to: cred.user.uid,
             title: 'Welcome to EasyGo',
-            message: 'Thanks for joining! Explore collections and start reading.',
+            message: 'Thanks for joining! Explore our premium fleet today.',
             read: false,
             createdAt: serverTimestamp(),
           })
         }
       } catch { }
 
-      if (onClose) onClose()
+      // CRITICAL: Close modal on success. Do NOT redirect to Sign In.
+      if (onClose) {
+        onClose()
+      }
+
     } catch (err: any) {
       let msg = 'Sign up failed. Please try again.'
       switch (err?.code) {
