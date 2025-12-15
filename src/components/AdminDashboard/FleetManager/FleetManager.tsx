@@ -119,7 +119,7 @@ export default function FleetManager() {
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-slate-900">Fleet Management</h2>
+                <h2 className="text-2xl font-bold text-orange-600">Fleet Management</h2>
                 <div className="flex gap-3">
                     <button
                         type="button"

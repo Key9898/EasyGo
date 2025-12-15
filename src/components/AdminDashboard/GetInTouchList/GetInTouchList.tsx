@@ -66,7 +66,7 @@ export default function GetInTouchList() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-900">Get In Touch</h2>
+        <h2 className="text-2xl font-bold text-orange-600">Get In Touch Submissions</h2>
         <div className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg font-semibold">
           Total: {messages.length}
         </div>

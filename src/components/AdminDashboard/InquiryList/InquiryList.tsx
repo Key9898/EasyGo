@@ -128,7 +128,7 @@ export default function InquiryList() {
         <div className="space-y-6">
             {/* Header with Filters */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h2 className="text-2xl font-bold text-slate-900">Customer Inquiries</h2>
+                <h2 className="text-2xl font-bold text-orange-600">Customer Inquiries</h2>
 
                 <div className="flex gap-2 overflow-x-auto">
                     {(['all', 'new', 'contacted', 'resolved'] as const).map((status) => (

@@ -129,7 +129,7 @@ export default function ApplicationManager() {
         <div className="space-y-6">
             {/* Header with Filters */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h2 className="text-2xl font-bold text-slate-900">Job Applications</h2>
+                <h2 className="text-2xl font-bold text-orange-600">Job Applications Request</h2>
 
                 <div className="flex gap-2 overflow-x-auto">
                     {(['all', 'pending', 'reviewed', 'accepted', 'rejected'] as const).map((status) => (

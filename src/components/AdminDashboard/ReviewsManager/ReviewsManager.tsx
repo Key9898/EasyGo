@@ -103,7 +103,7 @@ export default function ReviewsManager() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="text-2xl font-bold text-slate-900">Reviews Management</h2>
+        <h2 className="text-2xl font-bold text-orange-600">Reviews Management</h2>
         <div className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg font-semibold">Total: {reviews.length}</div>
       </div>
 

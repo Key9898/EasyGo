@@ -82,7 +82,7 @@ export default function CorporateRequests() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">Corporate Fleet Requests</h2>
+        <h2 className="text-2xl font-bold text-orange-600 flex items-center gap-2">Corporate Fleet Requests</h2>
         <div className="flex gap-2 overflow-x-auto">
           {(['all', 'pending', 'contacted', 'approved', 'rejected'] as const).map(s => (
             <button key={s} type="button" onClick={() => setFilter(s)}

@@ -96,7 +96,12 @@ export default function UserManager() {
 
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-slate-900">User Management ({users.length})</h2>
+            <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-orange-600">User Management</h2>
+                <div className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg font-semibold">
+                    Total: {users.length}
+                </div>
+            </div>
 
             <UsersTable
                 users={paginatedUsers}
