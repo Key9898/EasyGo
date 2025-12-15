@@ -53,7 +53,7 @@ export default function Pagination({
     if (totalPosts === 0) return null
 
     return (
-        <div className="bg-white">
+        <div className="bg-slate-50">
             <div className="w-full">
                 <div className="flex items-center justify-between py-6 border-t border-slate-200 mt-4">
                     {/* Mobile pagination */}
